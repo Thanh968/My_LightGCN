@@ -64,5 +64,23 @@ class SampleGenerator(object):
 
         return [torch.LongTensor(val_users), torch.LongTensor(val_items), torch.LongTensor(negative_users), torch.LongTensor(negative_items)]
     
+    @property
+    def test_data(self):
+        test_ratings = pd.merge(self.test_ratings, self.negatives[['userId', 'negative_samples']], on='userId')
+        test_users, test_items, negative_users, negative_items = [], [], [] ,[]
+
+        for row in test_ratings.itertuples():
+            test_users.append(int(row.userId))
+            test_items.append(int(row.itemId))
+
+            list_of_negative_samples = list(row.negative_samples)
+            length = len(row.negative_samples)
+
+            for j in range(int((length - 1) / 2) + 1, length):
+                negative_users.append(int(row.userId))
+                negative_items.append(list_of_negative_samples[j])
+
+        return [torch.LongTensor(test_users), torch.LongTensor(test_items), torch.LongTensor(negative_users), torch.LongTensor(negative_items)]
     
+
     
