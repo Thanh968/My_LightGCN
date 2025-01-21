@@ -1,6 +1,7 @@
 import random
 import pandas as pd
 from copy import deepcopy
+import torch
 from torch.ultils.data import DataLoader, Dataset
 from ultils import getRequiredFields
 
@@ -44,4 +45,24 @@ class SampleGenerator(object):
         test_ratings = getRequiredFields(test_ratings, ['userId', 'itemId', 'rating'])
 
         return train_ratings, val_ratings, test_ratings
+    
+    @property
+    def validate_data(self):
+        val_ratings = pd.merge(self.val_ratings, self.negatives[['userId', 'negative_samples']], on='userId')
+        val_users, val_items, negative_users, negative_items = [], [], [] ,[]
+
+        for row in val_ratings.itertuples():
+            val_users.append(int(row.userId))
+            val_items.append(int(row.itemId))
+
+            len_of_negative_samples = len(row.negative_samples)
+            list_negative_sample = list(row.negative_samples)
+
+            for j in range(int(len_of_negative_samples / 2)):
+                negative_users.append(int(row.userId))
+                negative_items.append(int(list_negative_sample[j]))
+
+        return [torch.LongTensor(val_users), torch.LongTensor(val_items), torch.LongTensor(negative_users), torch.LongTensor(negative_items)]
+    
+    
     
