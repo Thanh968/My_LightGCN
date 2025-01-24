@@ -2,7 +2,10 @@ import random
 import pandas as pd
 from copy import deepcopy
 import torch
-from torch.ultils.data import DataLoader, Dataset
+import numpy as np
+from torch.utils.data import DataLoader, Dataset
+from scipy.sparse import csr_matrix, dok_matrix, diags
+import scipy as sp
 from ultils import getRequiredFields
 
 random.seed(0)
@@ -20,6 +23,13 @@ class SampleGenerator(object):
 
         self.negatives = self._sample_negative()
         self.train_ratings, self.val_ratings, self.test_ratings = self._split_loo(self.preprocessed_ratings)
+
+        self.num_users = len(ratings['userId'].unique())
+        self.num_items = len(ratings['itemId'].unique())
+
+        self.UserItemNet = csr_matrix((np.ones(len(self.train_ratings.userId)), (self.train_ratings.userId, self.train_ratings.itemId)), shape=(self.num_users, self.num_items))
+        self.users_D = self.UserItemNet.sum(axis=1)
+        self.items_D = self.UserItemNet.sum(axis = 0)
 
     def _binarize(self):
         ratings = deepcopy(self.ratings)
@@ -83,4 +93,32 @@ class SampleGenerator(object):
         return [torch.LongTensor(test_users), torch.LongTensor(test_items), torch.LongTensor(negative_users), torch.LongTensor(negative_items)]
     
 
-    
+    def _convert_sp_mat_to_sp_tensor(self, X):
+        coo_matrix = X.tocoo().astype(np.float32)
+        row = torch.Tensor(coo_matrix.row).long()
+        col = torch.Tensor(coo_matrix.col).long()
+        index = torch.stack([row, col])
+        data = torch.FloatTensor(coo_matrix.data)
+        return torch.sparse.FloatTensor(index, data, torch.Size(coo_matrix.shape))
+
+    def getSparseGraph(self):
+        adj_matrix = dok_matrix((self.num_items + self.num_users, self.num_items + self.num_users), dtype=np.float32)
+        adj_matrix = adj_matrix.tolil()
+        R = self.UserItemNet.tolil()
+        adj_matrix[:self.num_users,self.num_users:] = R
+        adj_matrix[self.num_users:, :self.num_users] = R.T
+        adj_matrix = adj_matrix.todok()
+
+        sumrow_matrix = np.array(adj_matrix.sum(axis=1))
+        d_inv = np.power(sumrow_matrix, -0.5).flatten()
+        d_inv[np.isinf(d_inv)] = 0.
+        d_mat = diags(d_inv, offsets = 0)
+
+        norm_adj = d_mat.dot(adj_matrix)
+        norm_adj = norm_adj.dot(d_mat)
+        norm_adj =norm_adj.tocsr()
+
+        self.Graph = self._convert_sp_mat_to_sp_tensor(norm_adj)
+        self.Graph = self.Graph.coalesce().to(torch.device('cpu'))
+
+        return self.Graph
