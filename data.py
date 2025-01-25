@@ -10,7 +10,47 @@ from ultils import getRequiredFields
 
 random.seed(0)
 
-class SampleGenerator(object):
+class BasicDataset(Dataset):
+    def __init__(self):
+        print("init dataset")
+
+    @property
+    def num_users(self):
+        raise NotImplementedError
+    
+    @property
+    def num_items(Self):
+        raise NotImplementedError
+    
+    @property
+    def trainDataSize(self):
+        raise NotImplementedError
+    
+    @property
+    def test_data(self):
+        raise NotImplementedError
+    
+    @property
+    def validate_data(self):
+        raise NotImplementedError
+    
+    def getUserItemFeedback(self, users, items):
+        raise NotImplementedError
+    
+    def getUserPosItems(self, users):
+        raise NotImplementedError
+    
+    def getSparseGraph(self):
+        """
+        build a graph in torch.sparse.IntTensor.
+        Details in NGCF's matrix form
+        A = 
+            |0,   R|
+            |R^T, 0|
+        """
+        raise NotImplementedError
+
+class SampleGenerator(BasicDataset):
     def __init__(self, ratings):
         assert 'userId' in ratings.columns
         assert 'itemId' in ratings.columns
@@ -27,9 +67,8 @@ class SampleGenerator(object):
         self.num_users = len(ratings['userId'].unique())
         self.num_items = len(ratings['itemId'].unique())
 
+        # bipartie graph
         self.UserItemNet = csr_matrix((np.ones(len(self.train_ratings.userId)), (self.train_ratings.userId, self.train_ratings.itemId)), shape=(self.num_users, self.num_items))
-        self.users_D = self.UserItemNet.sum(axis=1)
-        self.items_D = self.UserItemNet.sum(axis = 0)
 
     def _binarize(self):
         ratings = deepcopy(self.ratings)
@@ -119,6 +158,18 @@ class SampleGenerator(object):
         norm_adj =norm_adj.tocsr()
 
         self.Graph = self._convert_sp_mat_to_sp_tensor(norm_adj)
-        self.Graph = self.Graph.coalesce().to(torch.device('cpu'))
+        self.Graph = self.Graph.coalesce().to(torch.device('gpu'))
 
         return self.Graph
+    
+    def getUserItemFeedback(self, users, items):
+        result = np.array(self.UserItemNet[users, items]).astype('uint8').reshape((-1,))
+        return result;
+
+    def getUserPosItems(self, users):
+        pos_items = []
+
+        for user in users:
+            pos_items.append(self.UserItemNet[user].nonzero()[1])
+
+        return pos_items
