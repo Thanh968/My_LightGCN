@@ -14,7 +14,7 @@ class PairWiseModel(BasicModel):
     def __init__(self):
         super(PairWiseModel, self).__init__()
 
-    def bpr_loss(self, users, items):
+    def bpr_loss(self, users, pos, neg):
         raise NotImplementedError
     
 class LightGCN(BasicModel):
