@@ -9,6 +9,13 @@ class BasicModel(nn.Module):
 
     def getUsersRating(self, users, items):
         raise NotImplementedError
+
+class PairWiseModel(BasicModel):
+    def __init__(self):
+        super(PairWiseModel, self).__init__()
+
+    def bpr_loss(self, users, items):
+        raise NotImplementedError
     
 class LightGCN(BasicModel):
     def __init__(self, config: dict, dataset: BasicDataset):
@@ -56,6 +63,43 @@ class LightGCN(BasicModel):
         item_emb = all_items[items]
         ratings = self.activate_function(torch.matmul(user_emb, item_emb.t()))
         return ratings
+
+
+    def getEmbedding(self, users, pos_items, neg_items):
+        all_users, all_items = self.computer()
+        user_embs = all_users[users]
+        pos_embs = all_items[pos_items]
+        neg_embs = all_items[neg_items]
+        
+        user_embs_ego = self.embedding_user[users]
+        pos_embs_ego = self.embedding_item[pos_items]
+        neg_embs_ego = self.embedding_item[neg_items]
+
+        return user_embs, pos_embs, neg_embs, user_embs_ego, pos_embs_ego, neg_embs_ego
+    
+    def bpr_loss(self, users, pos, neg):
+        user_embs, pos_embs, neg_embs, user_embs_ego, pos_embs_ego, neg_embs_ego = self.getEmbedding(users, pos, neg)
+
+        reg_loss = 1 / 2 * (user_embs_ego.norm(2).pow(2) + pos_embs_ego.norm(2).pow(2) + neg_embs_ego.norm(2).pow(2)) / len(users)
+        pos_scores = torch.mul(user_embs, pos_embs)
+        pos_scores = torch.sum(pos_scores, dim = 1)
+
+        neg_scores = torch.mul(user_embs, neg_embs)
+        neg_scores = torch.sum(neg_scores, dim = 1)
+
+        loss = torch.mean(torch.nn.functional.softplus(neg_scores - pos_scores))
+
+        return loss, reg_loss
+
+    def forward(self, users, items):
+        all_users, all_items = self.computer()
+        user_emb = all_users[users]
+        item_emb = all_items[items]
+
+        result = torch.mul(user_emb, item_emb)
+        result = torch.sum(result, dim = 1)
+
+        return result
 
     
 
