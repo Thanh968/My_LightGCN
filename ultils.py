@@ -1,6 +1,9 @@
 import pandas as pd
 from torch import nn, optim
 from model import PairWiseModel
+from data import BasicDataset
+import numpy as np
+import random
 
 
 def getRequiredFields(dataframe, required_fields):
@@ -29,3 +32,25 @@ class BPR_Loss:
         self.opt.step()
 
         return loss.cpu().item()
+
+def UniformSample_original_python(dataset: BasicDataset):
+    num_train_users = dataset.trainDataSize
+    sample_users = np.random.choice(np.array(range(dataset.num_users), num_train_users, replace = False))
+    allPos = dataset.allPos
+    S = []
+
+    for i, user in enumerate(sample_users):
+        userPosItems = allPos[user]
+        if len(userPosItems) == 0:
+            continue
+        selected_pos_item_index = np.random.randint(0, len(userPosItems))
+        selected_pos_item = allPos[selected_pos_item_index]
+
+        userPosItems = set(userPosItems)
+        userNegItems = set(dataset.num_items) - userPosItems
+
+        selected_neg_item = random.choice(list(userNegItems))
+
+        S.append([user, selected_pos_item, selected_neg_item])
+
+    return np.array(S)

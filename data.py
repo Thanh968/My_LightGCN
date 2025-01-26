@@ -34,6 +34,10 @@ class BasicDataset(Dataset):
     def validate_data(self):
         raise NotImplementedError
     
+    @property
+    def allPos(self, users):
+        raise NotImplementedError
+    
     def getUserItemFeedback(self, users, items):
         raise NotImplementedError
     
@@ -96,6 +100,11 @@ class SampleGenerator(BasicDataset):
         return train_ratings, val_ratings, test_ratings
     
     @property
+    def trainDataSize(self):
+        result = self.train_ratings.shape[0]
+        return result
+
+    @property
     def validate_data(self):
         val_ratings = pd.merge(self.val_ratings, self.negatives[['userId', 'negative_samples']], on='userId')
         val_users, val_items, negative_users, negative_items = [], [], [] ,[]
@@ -131,6 +140,10 @@ class SampleGenerator(BasicDataset):
 
         return [torch.LongTensor(test_users), torch.LongTensor(test_items), torch.LongTensor(negative_users), torch.LongTensor(negative_items)]
     
+    @property
+    def allPos(self, users):
+        result = self.getUserPosItems(users)
+        return result
 
     def _convert_sp_mat_to_sp_tensor(self, X):
         coo_matrix = X.tocoo().astype(np.float32)
@@ -171,5 +184,5 @@ class SampleGenerator(BasicDataset):
 
         for user in users:
             pos_items.append(self.UserItemNet[user].nonzero()[1])
-
+        
         return pos_items
