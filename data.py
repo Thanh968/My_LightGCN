@@ -6,7 +6,10 @@ import numpy as np
 from torch.utils.data import DataLoader, Dataset
 from scipy.sparse import csr_matrix, dok_matrix, diags
 import scipy as sp
-from ultils import getRequiredFields
+
+def getRequiredFields(dataframe, required_fields):
+    result = dataframe[required_fields]
+    return result;
 
 random.seed(0)
 
@@ -35,7 +38,7 @@ class BasicDataset(Dataset):
         raise NotImplementedError
     
     @property
-    def allPos(self, users):
+    def allPos(self):
         raise NotImplementedError
     
     def getUserItemFeedback(self, users, items):
@@ -68,8 +71,11 @@ class SampleGenerator(BasicDataset):
         self.negatives = self._sample_negative()
         self.train_ratings, self.val_ratings, self.test_ratings = self._split_loo(self.preprocessed_ratings)
 
-        self.num_users = len(ratings['userId'].unique())
-        self.num_items = len(ratings['itemId'].unique())
+        self._num_users = len(np.unique(ratings['userId']))
+        self._num_items = len(np.unique(ratings['itemId']))
+
+        print(f"Number of unique users: {self._num_users}")
+        print(f"Number of unique items: {self._num_items}")
 
         # bipartie graph
         self.UserItemNet = csr_matrix((np.ones(len(self.train_ratings.userId)), (self.train_ratings.userId, self.train_ratings.itemId)), shape=(self.num_users, self.num_items))
@@ -98,6 +104,14 @@ class SampleGenerator(BasicDataset):
         test_ratings = getRequiredFields(test_ratings, ['userId', 'itemId', 'rating'])
 
         return train_ratings, val_ratings, test_ratings
+    
+    @property
+    def num_users(self):
+        return self._num_users
+    
+    @property
+    def num_items(self):
+        return self._num_items
     
     @property
     def trainDataSize(self):
@@ -141,7 +155,8 @@ class SampleGenerator(BasicDataset):
         return [torch.LongTensor(test_users), torch.LongTensor(test_items), torch.LongTensor(negative_users), torch.LongTensor(negative_items)]
     
     @property
-    def allPos(self, users):
+    def allPos(self):
+        users = list(range(self._num_users))
         result = self.getUserPosItems(users)
         return result
 
@@ -171,7 +186,7 @@ class SampleGenerator(BasicDataset):
         norm_adj =norm_adj.tocsr()
 
         self.Graph = self._convert_sp_mat_to_sp_tensor(norm_adj)
-        self.Graph = self.Graph.coalesce().to(torch.device('gpu'))
+        self.Graph = self.Graph.coalesce().to(torch.device('cuda'))
 
         return self.Graph
     

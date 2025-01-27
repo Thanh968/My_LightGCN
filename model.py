@@ -5,7 +5,7 @@ from torch import nn
 
 class BasicModel(nn.Module):
     def __init__(self):
-        super(BasicModel, self).init()
+        super(BasicModel, self).__init__()
 
     def getUsersRating(self, users, items):
         raise NotImplementedError
@@ -31,8 +31,8 @@ class LightGCN(BasicModel):
         self.n_layers = self.config['lightGCN_n_layers']
         self.keep_prob = self.config['keep_prob']
         self.A_split = self.config['A_split']
-        self.embedding_user = torch.nn.Embedding(num_embeddings = self.num_users, embedding_dim=self.latent_dim)
-        self.embedding_item = torch.nn.Embedding(num_embeddings = self.num_items, embedding_dim = self.latent_dim)
+        self.embedding_user = torch.nn.Embedding(num_embeddings = self.num_users, embedding_dim=self.latent_dim).to(torch.device('cuda'))
+        self.embedding_item = torch.nn.Embedding(num_embeddings = self.num_items, embedding_dim = self.latent_dim).to(torch.device('cuda'))
         torch.nn.init.normal_(self.embedding_user.weight, std=0.1)
         torch.nn.init.normal_(self.embedding_item.weight, std = 0.1)
 
@@ -43,11 +43,14 @@ class LightGCN(BasicModel):
         user_weight = self.embedding_user.weight
         item_weight = self.embedding_item.weight
         all_em = torch.cat([user_weight, item_weight])
+        all_em = all_em.to(torch.device('cuda'))
 
         embs = [all_em]
         graph = self.Graph
 
         for layer in range(self.n_layers):
+            print(f"All embed device: {all_em.device}")
+            print(f"Graph device: {graph.device}")
             all_em = torch.sparse.mm(graph, all_em)
             embs.append(all_em)
 
@@ -70,10 +73,14 @@ class LightGCN(BasicModel):
         user_embs = all_users[users]
         pos_embs = all_items[pos_items]
         neg_embs = all_items[neg_items]
+
+        print(f"User device: {users.device}")
+        print(f"pos items device: {pos_items.device}")
+        print(f"neg items device: {neg_items.device}")
         
-        user_embs_ego = self.embedding_user[users]
-        pos_embs_ego = self.embedding_item[pos_items]
-        neg_embs_ego = self.embedding_item[neg_items]
+        user_embs_ego = self.embedding_user(users)
+        pos_embs_ego = self.embedding_item(pos_items)
+        neg_embs_ego = self.embedding_item(neg_items)
 
         return user_embs, pos_embs, neg_embs, user_embs_ego, pos_embs_ego, neg_embs_ego
     

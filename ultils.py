@@ -6,11 +6,6 @@ import numpy as np
 import random
 import torch
 
-
-def getRequiredFields(dataframe, required_fields):
-    result = dataframe[required_fields]
-    return result;
-
 class BPR_Loss:
     def __init__(self, recmodel : PairWiseModel, config: dict):
         self.model = recmodel
@@ -32,25 +27,19 @@ class BPR_Loss:
         return loss.cpu().item()
 
 def UniformSample_original_python(dataset: BasicDataset):
-    num_train_users = dataset.trainDataSize
-    sample_users = np.random.choice(np.array(range(dataset.num_users), num_train_users, replace = False))
+    num_users = dataset.num_users
     allPos = dataset.allPos
+    num_items = dataset.num_items
+    all_items_set = set(list(range(num_items)))
     S = []
-
-    for i, user in enumerate(sample_users):
-        # All Pos chỉ build tren tap train nen khong sao
-        userPosItems = allPos[user]
-        if len(userPosItems) == 0:
-            continue
-        selected_pos_item_index = np.random.randint(0, len(userPosItems))
-        selected_pos_item = allPos[selected_pos_item_index]
-
-        userPosItems = set(userPosItems)
-        userNegItems = set(dataset.num_items) - userPosItems
-
-        selected_neg_item = random.choice(list(userNegItems))
-
-        S.append([user, selected_pos_item, selected_neg_item])
+    
+    for user in range(num_users):
+        all_pos_items = allPos[user]
+        selected_pos = random.choice(all_pos_items)
+        all_pos_set = set(all_pos_items)
+        neg_items = all_items_set - all_pos_set
+        selected_neg = random.choice(list(neg_items))
+        S.append([user, selected_pos, selected_neg])
 
     return np.array(S)
 
@@ -66,7 +55,9 @@ def shuffle(*array, **kwargs):
     required_index = kwargs.get('indices', False)
     length_set = set(len(x) for x in array)
 
-    if (length_set != 1):
+    print(f"Tap cac kich thuoc cua tensor: {length_set}")
+
+    if (len(list(length_set)) != 1):
         raise ValueError('Cac tensor phai co cung kich thuoc')
     
     indices_array = np.arange(len(array[0]))
@@ -83,4 +74,10 @@ def shuffle(*array, **kwargs):
         return result, indices_array
     
     return result
+
+def minibatch(*tensor, **kwargs):
+    batch_size = kwargs.get('batch_size', 94)
+    for i in range(0, len(tensor[0]), batch_size):
+        yield tuple(x[i:i+batch_size] for x in tensor)
+
 
