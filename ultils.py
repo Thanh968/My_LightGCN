@@ -55,8 +55,6 @@ def shuffle(*array, **kwargs):
     required_index = kwargs.get('indices', False)
     length_set = set(len(x) for x in array)
 
-    print(f"Tap cac kich thuoc cua tensor: {length_set}")
-
     if (len(list(length_set)) != 1):
         raise ValueError('Cac tensor phai co cung kich thuoc')
     

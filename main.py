@@ -31,7 +31,9 @@ test_data = sample_generator.test_data
 
 Recmodel = LightGCN(config=config, dataset= sample_generator)
 bpr = ultils.BPR_Loss(Recmodel, config)
-procedure.BPR_train(sample_generator, Recmodel, bpr)
+
+for epoch in range(5):
+    procedure.BPR_train(sample_generator, Recmodel, bpr)
 
 
 

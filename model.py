@@ -49,8 +49,6 @@ class LightGCN(BasicModel):
         graph = self.Graph
 
         for layer in range(self.n_layers):
-            print(f"All embed device: {all_em.device}")
-            print(f"Graph device: {graph.device}")
             all_em = torch.sparse.mm(graph, all_em)
             embs.append(all_em)
 
@@ -73,10 +71,6 @@ class LightGCN(BasicModel):
         user_embs = all_users[users]
         pos_embs = all_items[pos_items]
         neg_embs = all_items[neg_items]
-
-        print(f"User device: {users.device}")
-        print(f"pos items device: {pos_items.device}")
-        print(f"neg items device: {neg_items.device}")
         
         user_embs_ego = self.embedding_user(users)
         pos_embs_ego = self.embedding_item(pos_items)

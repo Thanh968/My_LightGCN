@@ -74,15 +74,13 @@ class SampleGenerator(BasicDataset):
         self._num_users = len(np.unique(ratings['userId']))
         self._num_items = len(np.unique(ratings['itemId']))
 
-        print(f"Number of unique users: {self._num_users}")
-        print(f"Number of unique items: {self._num_items}")
-
         # bipartie graph
         self.UserItemNet = csr_matrix((np.ones(len(self.train_ratings.userId)), (self.train_ratings.userId, self.train_ratings.itemId)), shape=(self.num_users, self.num_items))
 
     def _binarize(self):
         ratings = deepcopy(self.ratings)
-        ratings['rating'][ratings['rating'] > 0] = 1.0
+        # ratings['rating'][ratings['rating'] > 0] = 1.0
+        ratings.loc[ratings['rating'] > 0, 'rating'] = 1.0
         return ratings
 
     def _sample_negative(self):
