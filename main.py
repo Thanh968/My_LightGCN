@@ -31,9 +31,18 @@ test_data = sample_generator.test_data
 
 Recmodel = LightGCN(config=config, dataset= sample_generator)
 bpr = ultils.BPR_Loss(Recmodel, config)
+loss_list = []
+for epoch in range(50):
+    loss = procedure.BPR_train(sample_generator, Recmodel, bpr)
+    loss_list.append(loss)
 
-for epoch in range(5):
-    procedure.BPR_train(sample_generator, Recmodel, bpr)
+    if epoch % 10 == 0:
+        print(f"Loss of {epoch} epoch is: {loss}")
+        val_hit_ratios, val_ndcgs = procedure.evaluate(Recmodel, validate_data)
+        test_hit_ratios, test_ndcgs = procedure.evaluate(Recmodel, test_data)
+
+        print(f"Validate data Epoch: {epoch}, hit_ratio@10 = {val_hit_ratios}, ndcg@10= {val_ndcgs}")
+        print(f"Test data Epoch: {epoch}, hit_ratio@10 = {test_hit_ratios}, ndcg@10= {test_ndcgs}")
 
 
 

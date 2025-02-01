@@ -40,23 +40,21 @@ class LightGCN(BasicModel):
         self.Graph = self.dataset.getSparseGraph()
 
     def computer(self):
-        user_weight = self.embedding_user.weight
-        item_weight = self.embedding_item.weight
-        all_em = torch.cat([user_weight, item_weight])
-        all_em = all_em.to(torch.device('cuda'))
+        user_emb_weight = self.embedding_user.weight
+        item_emb_weight = self.embedding_item.weight
+        all_emb = torch.cat((user_emb_weight, item_emb_weight))
 
-        embs = [all_em]
-        graph = self.Graph
-
+        embs = [all_emb]
+        g_droped = self.Graph
         for layer in range(self.n_layers):
-            all_em = torch.sparse.mm(graph, all_em)
-            embs.append(all_em)
+            all_emb = torch.sparse.mm(g_droped, all_emb)
+            embs.append(all_emb)
 
-        embs = torch.stack(embs, dim=1)
+        embs = torch.stack(embs, dim = 1)
+        light_out = torch.mean(embs, dim = 1)
+        user_embs, item_embs = torch.split(light_out, [self.num_users, self.num_items])
 
-        result = torch.mean(embs, dim=1)
-        users, items = torch.split(result, [self.num_users, self.num_items])
-        return users, items
+        return user_embs, item_embs
 
     def getUsersRating(self, users, items):
         all_users, all_items = self.computer()
